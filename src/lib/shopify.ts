@@ -540,7 +540,7 @@ export async function syncShopifyOrderWebhooks(
 			};
 		}>(
 			env,
-			`mutation CreateOrderWebhook($topic: WebhookSubscriptionTopic!, $uri: URL!) {
+			`mutation CreateOrderWebhook($topic: WebhookSubscriptionTopic!, $uri: String!) {
 				webhookSubscriptionCreate(
 					topic: $topic
 					webhookSubscription: { uri: $uri, format: JSON }

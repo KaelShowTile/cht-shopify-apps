@@ -153,8 +153,8 @@ export const DistanceSettingsPage: FC<DistanceSettingsPageProps> = ({
 			<div class="card">
 				<h2 class="card-title">Shopify Webhooks</h2>
 				<p class="card-desc">
-					Requires <strong>Protected customer data → Shipping address</strong> enabled in
-					Shopify Dev Dashboard so webhooks include customer addresses.
+					Subscribes to <strong>ORDERS_PAID</strong> and <strong>ORDERS_UPDATED</strong>{" "}
+					for automatic distance calculation and post-payment address changes.
 				</p>
 
 				<div class="form-group">
