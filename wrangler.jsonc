@@ -10,7 +10,19 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"vars": {
+		"SHOPIFY_API_VERSION": "2026-04"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "cht_shopify",
+			"database_id": "7eef8039-fc79-440a-a833-331bac9a9588",
+			"migrations_dir": "migrations",
+			"remote": true
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

@@ -1,0 +1,18 @@
+# Copy this file to .dev.vars for local development (never commit .dev.vars!)
+# For production, set these with: npx wrangler secret put <KEY>
+
+GOOGLE_CLIENT_ID="your-google-oauth-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+
+# Comma-separated list of allowed Google email addresses
+ALLOWED_EMAILS="you@gmail.com,client@gmail.com"
+
+# Random secret string (at least 32 characters) used to sign login session cookies
+SESSION_SECRET="replace-with-a-long-random-secret-string"
+
+# Optional separate key for encrypting secrets stored in D1 (defaults to SESSION_SECRET if omitted)
+ENCRYPTION_KEY="replace-with-another-long-random-secret-string"
+
+# Optional public base URL (e.g. https://your-tunnel.trycloudflare.com or https://your-worker.workers.dev)
+# Leave empty to automatically use the incoming request origin
+# APP_BASE_URL=""
