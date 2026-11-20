@@ -124,3 +124,15 @@ export function randomToken(byteLength = 24): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
 	return bytesToBase64Url(bytes);
 }
+
+/**
+ * Returns a safe, non-reversible 8-char hex fingerprint of the active encryption key
+ * so local (.dev.vars) and production (Cloudflare Secrets) can be compared without leaking secrets.
+ */
+export async function getKeyFingerprint(secret?: string): Promise<string> {
+	if (!secret) {
+		return "none";
+	}
+	const hex = await sha256Hex(`cht-shopify-apps:key-fp:v1:${secret}`);
+	return hex.slice(0, 8);
+}

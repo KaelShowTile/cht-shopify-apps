@@ -6,7 +6,7 @@ import {
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import worker from "../src/index";
 import { signSessionToken } from "../src/lib/auth";
-import { hmacSha256Base64 } from "../src/lib/crypto";
+import { encryptValue, hmacSha256Base64 } from "../src/lib/crypto";
 import { ensureSchema, getRecentWebhookLogs, getSettings, setSettings } from "../src/lib/db";
 import { APP_SECRET_KEYS, APP_SETTING_ID } from "../src/lib/shopify";
 import { DISTANCE_SECRET_KEYS, DISTANCE_SETTING_ID } from "../src/features/distance-calculation";
@@ -399,5 +399,44 @@ describe("CHT Shopify Apps Worker", () => {
 		expect(logs[1].topic).toBe("orders/updated");
 		expect(logs[2].distance_meters).toBe(15433);
 		expect(logs[2].topic).toBe("orders/paid");
+	});
+
+	it("surfaces decryption mismatch warning with key fingerprint and supports SESSION_SECRET fallback", async () => {
+		const cookie = await makeAdminCookie();
+
+		// 1) Value encrypted with a completely different key should trigger clear UI warning
+		const foreignCiphertext = await encryptValue("shpss_other_env", "completely-different-key");
+		await testEnv.DB.prepare(
+			"INSERT INTO settings (setting_id, key, value) VALUES ('app', 'client_secret', ?)"
+		)
+			.bind(foreignCiphertext)
+			.run();
+
+		const warnRes = await callWorker(
+			new Request("https://app.example.com/features/app-settings", {
+				headers: { Cookie: cookie },
+			})
+		);
+		expect(warnRes.status).toBe(200);
+		const warnHtml = await warnRes.text();
+		expect(warnHtml).toContain("Decryption failed");
+		expect(warnHtml).toContain("client_secret");
+
+		// 2) Value encrypted with SESSION_SECRET should decrypt via fallback even when ENCRYPTION_KEY is set
+		const sessionKeyCiphertext = await encryptValue("shpss_legacy_session", testEnv.SESSION_SECRET!);
+		await testEnv.DB.prepare(
+			"UPDATE settings SET value = ? WHERE setting_id = 'app' AND key = 'client_secret'"
+		)
+			.bind(sessionKeyCiphertext)
+			.run();
+
+		const okRes = await callWorker(
+			new Request("https://app.example.com/features/app-settings", {
+				headers: { Cookie: cookie },
+			})
+		);
+		const okHtml = await okRes.text();
+		expect(okHtml).not.toContain("Decryption failed");
+		expect(okHtml).toContain("Saved (••••••••sion)");
 	});
 });

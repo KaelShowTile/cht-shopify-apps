@@ -1,8 +1,9 @@
 import { sha256Hex } from "../lib/crypto";
 import {
+	getDecryptionSecrets,
 	getEncryptionSecret,
 	getLatestSuccessfulAddressHash,
-	getSettings,
+	getSettingsWithDiagnostics,
 	hasProcessedWebhook,
 	insertWebhookLog,
 	setSettings,
@@ -31,10 +32,15 @@ export interface DistanceSettingsData {
 	warehouse_address_cache: string;
 	warehouse_location_name: string;
 	warehouse_cached_location_id: string;
+	decryptionErrors: string[];
 }
 
 export async function getDistanceSettings(env: AppBindings): Promise<DistanceSettingsData> {
-	const data = await getSettings(env.DB, DISTANCE_SETTING_ID, getEncryptionSecret(env));
+	const { values: data, failedKeys } = await getSettingsWithDiagnostics(
+		env.DB,
+		DISTANCE_SETTING_ID,
+		getDecryptionSecrets(env)
+	);
 	return {
 		enabled: data.enabled !== "false",
 		google_maps_api_key: data.google_maps_api_key || "",
@@ -49,6 +55,7 @@ export async function getDistanceSettings(env: AppBindings): Promise<DistanceSet
 		warehouse_address_cache: data.warehouse_address_cache || "",
 		warehouse_location_name: data.warehouse_location_name || "",
 		warehouse_cached_location_id: data.warehouse_cached_location_id || "",
+		decryptionErrors: failedKeys,
 	};
 }
 

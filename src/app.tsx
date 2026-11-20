@@ -13,6 +13,7 @@ import {
 	sanitizeNextPath,
 	verifySessionToken,
 } from "./lib/auth";
+import { getKeyFingerprint } from "./lib/crypto";
 import {
 	deleteSetting,
 	getEncryptionSecret,
@@ -253,11 +254,15 @@ app.get("/", async (c) => {
 // ---------- Feature 1: App Settings ----------
 app.get("/features/app-settings", async (c) => {
 	const user = c.get("user");
-	const settings = await getAppSettings(c.env);
+	const [settings, keyFingerprint] = await Promise.all([
+		getAppSettings(c.env),
+		getKeyFingerprint(getEncryptionSecret(c.env)),
+	]);
 	return c.html(
 		<AppSettingsPage
 			user={user}
 			settings={settings}
+			keyFingerprint={keyFingerprint}
 			flashSuccess={c.req.query("success")}
 			flashError={c.req.query("error")}
 		/>
@@ -340,10 +345,11 @@ app.post("/features/app-settings/test-token", async (c) => {
 // ---------- Feature 2: Distance Calculation ----------
 app.get("/features/distance-calculation", async (c) => {
 	const user = c.get("user");
-	const [appSettings, distanceSettings, logs] = await Promise.all([
+	const [appSettings, distanceSettings, logs, keyFingerprint] = await Promise.all([
 		getAppSettings(c.env),
 		getDistanceSettings(c.env),
 		getRecentWebhookLogs(c.env.DB, DISTANCE_SETTING_ID, 20),
+		getKeyFingerprint(getEncryptionSecret(c.env)),
 	]);
 
 	const webhookEndpointUrl = `${getAppBaseUrl(c.req.raw, c.env)}/webhooks/shopify/orders`;
@@ -366,6 +372,7 @@ app.get("/features/distance-calculation", async (c) => {
 		<DistanceSettingsPage
 			user={user}
 			settings={distanceSettings}
+			keyFingerprint={keyFingerprint}
 			webhookEndpointUrl={webhookEndpointUrl}
 			webhooks={webhooks}
 			webhookListError={webhookListError}

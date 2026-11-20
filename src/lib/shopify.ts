@@ -1,5 +1,10 @@
 import { hmacSha256Base64, timingSafeEqualString } from "./crypto";
-import { getEncryptionSecret, getSettings, setSettings } from "./db";
+import {
+	getDecryptionSecrets,
+	getEncryptionSecret,
+	getSettingsWithDiagnostics,
+	setSettings,
+} from "./db";
 import type { AppBindings, ShopifyAddress } from "../types";
 
 export const APP_SETTING_ID = "app";
@@ -13,6 +18,7 @@ export interface AppSettingsData {
 	client_secret: string;
 	access_token: string;
 	access_token_expires_at: string;
+	decryptionErrors: string[];
 }
 
 export function normalizeShopDomain(input: string): string {
@@ -73,13 +79,18 @@ export function formatShopifyAddress(addr?: ShopifyAddress | null): string {
 }
 
 export async function getAppSettings(env: AppBindings): Promise<AppSettingsData> {
-	const data = await getSettings(env.DB, APP_SETTING_ID, getEncryptionSecret(env));
+	const { values: data, failedKeys } = await getSettingsWithDiagnostics(
+		env.DB,
+		APP_SETTING_ID,
+		getDecryptionSecrets(env)
+	);
 	return {
 		shop_domain: data.shop_domain || "",
 		client_id: data.client_id || "",
 		client_secret: data.client_secret || "",
 		access_token: data.access_token || "",
 		access_token_expires_at: data.access_token_expires_at || "",
+		decryptionErrors: failedKeys,
 	};
 }
 

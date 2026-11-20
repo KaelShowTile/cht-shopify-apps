@@ -7,6 +7,7 @@ import type { SessionUser } from "../types";
 interface AppSettingsPageProps {
 	user: SessionUser;
 	settings: AppSettingsData;
+	keyFingerprint: string;
 	flashSuccess?: string;
 	flashError?: string;
 }
@@ -14,6 +15,7 @@ interface AppSettingsPageProps {
 export const AppSettingsPage: FC<AppSettingsPageProps> = ({
 	user,
 	settings,
+	keyFingerprint,
 	flashSuccess,
 	flashError,
 }) => {
@@ -44,11 +46,25 @@ export const AppSettingsPage: FC<AppSettingsPageProps> = ({
 				</span>
 			</div>
 
+			{settings.decryptionErrors.length > 0 && (
+				<div class="alert alert-error">
+					<strong>Decryption failed</strong> for stored field(s):{" "}
+					<span class="mono">{settings.decryptionErrors.join(", ")}</span>. This happens
+					when <span class="mono">ENCRYPTION_KEY</span> does not match the key used when
+					those values were saved (for example, local <span class="mono">.dev.vars</span> vs
+					Cloudflare Dashboard Secrets mismatch, or extra quotes/spaces). Active key
+					fingerprint: <span class="mono">{keyFingerprint}</span>. Please make sure both
+					environments share the exact same <span class="mono">ENCRYPTION_KEY</span>, then
+					re-save the secret.
+				</div>
+			)}
+
 			<div class="card">
 				<h2 class="card-title">Shopify Credentials</h2>
 				<p class="card-desc">
 					Stored in D1 (<span class="mono">setting_id = &quot;app&quot;</span>). Client Secret
-					and Access Token are encrypted with AES-GCM before writing to D1.
+					and Access Token are encrypted with AES-GCM (active key fingerprint:{" "}
+					<span class="mono">{keyFingerprint}</span>).
 				</p>
 
 				<form method="post" action="/features/app-settings">
@@ -83,7 +99,17 @@ export const AppSettingsPage: FC<AppSettingsPageProps> = ({
 					</div>
 
 					<div class="form-group">
-						<label for="client_secret">Client Secret</label>
+						<label
+							for="client_secret"
+							style="display:flex;align-items:center;justify-content:space-between;gap:8px;"
+						>
+							<span>Client Secret</span>
+							{settings.client_secret && (
+								<span class="badge badge-success mono">
+									Saved ({maskSecret(settings.client_secret)})
+								</span>
+							)}
+						</label>
 						<input
 							id="client_secret"
 							name="client_secret"

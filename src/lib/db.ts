@@ -4,7 +4,24 @@ import type { AppBindings, WebhookLogRow } from "../types";
 const initializedDbs = new WeakSet<D1Database>();
 
 export function getEncryptionSecret(env: AppBindings): string | undefined {
-	return env.ENCRYPTION_KEY || env.SESSION_SECRET;
+	const raw = env.ENCRYPTION_KEY || env.SESSION_SECRET;
+	return raw ? raw.trim() : undefined;
+}
+
+export function getDecryptionSecrets(env: AppBindings): string[] {
+	const candidates = [
+		env.ENCRYPTION_KEY?.trim(),
+		env.ENCRYPTION_KEY,
+		env.SESSION_SECRET?.trim(),
+		env.SESSION_SECRET,
+	];
+	const unique: string[] = [];
+	for (const candidate of candidates) {
+		if (candidate && !unique.includes(candidate)) {
+			unique.push(candidate);
+		}
+	}
+	return unique;
 }
 
 export async function ensureSchema(db: D1Database): Promise<void> {
@@ -49,27 +66,71 @@ export async function ensureSchema(db: D1Database): Promise<void> {
 	initializedDbs.add(db);
 }
 
-export async function getSettings(
+export interface SettingsReadResult {
+	values: Record<string, string>;
+	failedKeys: string[];
+}
+
+export async function getSettingsWithDiagnostics(
 	db: D1Database,
 	settingId: string,
-	encryptionSecret?: string
-): Promise<Record<string, string>> {
+	secrets?: string | string[]
+): Promise<SettingsReadResult> {
 	await ensureSchema(db);
 	const { results } = await db
 		.prepare("SELECT key, value FROM settings WHERE setting_id = ?")
 		.bind(settingId)
 		.all<{ key: string; value: string }>();
 
-	const map: Record<string, string> = {};
+	const secretList = Array.isArray(secrets)
+		? secrets.filter(Boolean)
+		: secrets
+			? [secrets]
+			: [];
+
+	const values: Record<string, string> = {};
+	const failedKeys: string[] = [];
+
 	for (const row of results) {
-		try {
-			map[row.key] = await decryptValue(row.value, encryptionSecret);
-		} catch {
-			// If decryption fails (e.g. key changed), return empty so UI can re-enter cleanly
-			map[row.key] = "";
+		if (!row.value.startsWith("enc:v1:")) {
+			values[row.key] = row.value;
+			continue;
+		}
+
+		let decrypted: string | null = null;
+		let lastError: unknown = null;
+
+		for (const candidate of secretList) {
+			try {
+				decrypted = await decryptValue(row.value, candidate);
+				break;
+			} catch (err) {
+				lastError = err;
+			}
+		}
+
+		if (decrypted !== null) {
+			values[row.key] = decrypted;
+		} else {
+			console.error(
+				`[D1 settings] Failed to decrypt ${settingId}.${row.key}:`,
+				lastError instanceof Error ? lastError.message : String(lastError)
+			);
+			values[row.key] = "";
+			failedKeys.push(row.key);
 		}
 	}
-	return map;
+
+	return { values, failedKeys };
+}
+
+export async function getSettings(
+	db: D1Database,
+	settingId: string,
+	encryptionSecret?: string | string[]
+): Promise<Record<string, string>> {
+	const { values } = await getSettingsWithDiagnostics(db, settingId, encryptionSecret);
+	return values;
 }
 
 export async function setSettings(

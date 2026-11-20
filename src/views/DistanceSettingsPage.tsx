@@ -8,6 +8,7 @@ import type { SessionUser, WebhookLogRow } from "../types";
 interface DistanceSettingsPageProps {
 	user: SessionUser;
 	settings: DistanceSettingsData;
+	keyFingerprint: string;
 	webhookEndpointUrl: string;
 	webhooks: WebhookSubscriptionInfo[];
 	webhookListError?: string;
@@ -19,6 +20,7 @@ interface DistanceSettingsPageProps {
 export const DistanceSettingsPage: FC<DistanceSettingsPageProps> = ({
 	user,
 	settings,
+	keyFingerprint,
 	webhookEndpointUrl,
 	webhooks,
 	webhookListError,
@@ -56,10 +58,22 @@ export const DistanceSettingsPage: FC<DistanceSettingsPageProps> = ({
 				</span>
 			</div>
 
+			{settings.decryptionErrors.length > 0 && (
+				<div class="alert alert-error">
+					<strong>Decryption failed</strong> for stored field(s):{" "}
+					<span class="mono">{settings.decryptionErrors.join(", ")}</span>. Make sure{" "}
+					<span class="mono">ENCRYPTION_KEY</span> matches across local{" "}
+					<span class="mono">.dev.vars</span> and Cloudflare Dashboard Secrets (no extra
+					quotes/spaces). Active key fingerprint:{" "}
+					<span class="mono">{keyFingerprint}</span>.
+				</div>
+			)}
+
 			<div class="card">
 				<h2 class="card-title">Feature Configuration</h2>
 				<p class="card-desc">
-					Stored in D1 (<span class="mono">setting_id = &quot;distance_calculation&quot;</span>).
+					Stored in D1 (<span class="mono">setting_id = &quot;distance_calculation&quot;</span>;
+					active key fingerprint: <span class="mono">{keyFingerprint}</span>).
 				</p>
 
 				<form method="post" action="/features/distance-calculation">
@@ -77,7 +91,17 @@ export const DistanceSettingsPage: FC<DistanceSettingsPageProps> = ({
 					</div>
 
 					<div class="form-group">
-						<label for="google_maps_api_key">Google Maps API Key (Routes API)</label>
+						<label
+							for="google_maps_api_key"
+							style="display:flex;align-items:center;justify-content:space-between;gap:8px;"
+						>
+							<span>Google Maps API Key (Routes API)</span>
+							{settings.google_maps_api_key && (
+								<span class="badge badge-success mono">
+									Saved ({maskSecret(settings.google_maps_api_key)})
+								</span>
+							)}
+						</label>
 						<input
 							id="google_maps_api_key"
 							name="google_maps_api_key"
